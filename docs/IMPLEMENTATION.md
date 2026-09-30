@@ -263,4 +263,14 @@ render_scale = slider_percent / 100 × 96 / 72
 - 不支援旋轉、裁切或多 PDF 合併。
 - 所有已渲染縮圖都保留在記憶體；極大量頁數或 200% 比例可能有較高記憶體用量。若要改善，優先考慮可視區域延遲渲染與縮圖快取淘汰。
 - 後端忙碌時不會中斷目前 PDF，而是等待完成後處理最新要求；大型 PDF 的快速縮放可進一步加入可取消的工作協定。
-- 目前沒有安裝程式或單檔 EXE；`pdfpick.ico` 已準備給後續 PyInstaller 或 Nuitka 打包流程。
+- GitHub Actions 可產出 Windows 單一 EXE 與 macOS App／DMG；目前未設定開發者簽章與 macOS 公證。
+
+## 15. 桌面套件打包
+
+- packaging/pdfpick.spec：Windows 使用 onefile windowed EXE；macOS 使用 onedir App bundle，保留原生函式庫的符號連結後封裝為 DMG。
+- scripts/build_desktop.py：執行 PyInstaller、封裝後功能檢查、DMG 建立與 SHA256 校驗檔產生。
+- .github/workflows/build-desktop.yml：兩個 GitHub 雲端原生 runner 建置 Windows x86_64 與 macOS arm64；Release 成功建置後才附加產物。
+- entrypoint.py：在載入 GUI 前辨識背景後端與封裝自我檢查模式，避免子程序再次開啟 GUI。
+- renderer.py：來源碼模式沿用 stdin/stdout；凍結模式以 loopback TCP、一次性隨機握手 token 與 UTF-8 串流通訊，因為 Windows windowed bootloader 沒有標準輸入輸出。
+- packaging_smoke.py：在封裝執行檔中實際渲染兩頁 PDF、載入 Qt 圖示並驗證指定順序的 PDF 輸出。
+- 版本資訊讀取已安裝的 pdfpick distribution metadata；PyInstaller 同時收集該 metadata，避免視窗與套件版本不同步。

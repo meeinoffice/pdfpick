@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import secrets
+import socket
 import subprocess
 import sys
 import threading
@@ -11,6 +13,8 @@ from PySide6.QtCore import QObject, Signal
 
 
 def start_render_backend() -> subprocess.Popen[str]:
+    if getattr(sys, "frozen", False):
+        return _start_frozen_backend()
     creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     process = subprocess.Popen(
         [sys.executable, "-m", "pdfpick.render_worker", "--server"],
@@ -33,6 +37,42 @@ def start_render_backend() -> subprocess.Popen[str]:
         process.terminate()
         raise RuntimeError("PDF 預覽後端未正確啟動。")
     return process
+
+
+def _start_frozen_backend() -> subprocess.Popen[str]:
+    # Windowed executables have no stdin/stdout; use an authenticated local socket.
+    token = secrets.token_hex(32)
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        listener.settimeout(30)
+        port = listener.getsockname()[1]
+        flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+        process = subprocess.Popen(
+            [sys.executable, "--render-server", str(port), token],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=flags,
+        )
+        try:
+            connection, _address = listener.accept()
+            with connection:
+                connection.settimeout(30)
+                process.stdin = connection.makefile("w", encoding="utf-8")
+                process.stdout = connection.makefile("r", encoding="utf-8")
+                ready = json.loads(process.stdout.readline())
+                if ready.get("type") != "ready" or ready.get("token") != token:
+                    raise RuntimeError("PDF 預覽後端驗證失敗。")
+                connection.settimeout(None)
+            return process
+        except Exception as exc:
+            process.terminate()
+            process.wait(timeout=5)
+            for stream in (process.stdin, process.stdout):
+                if stream is not None:
+                    stream.close()
+            raise RuntimeError("無法啟動封裝版 PDF 預覽後端。") from exc
 
 
 class RenderService(QObject):

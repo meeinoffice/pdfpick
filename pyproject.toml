@@ -12,9 +12,12 @@ dependencies = [
 ]
 
 [project.scripts]
-pdfpick = "pdfpick.app:main"
+pdfpick = "pdfpick.entrypoint:main"
 
 [dependency-groups]
+build = [
+    "pyinstaller>=6.16,<7",
+]
 dev = [
     "pytest>=8.3,<10",
     "pytest-qt>=4.4,<5",

@@ -30,3 +30,13 @@ uv run pytest
 ## 開發與維護
 
 目前架構、背景預覽協定、縮放定義、輸出安全機制與修改入口整理於 [實作與維護指南](docs/IMPLEMENTATION.md)。
+
+## Windows 執行檔與 macOS App／DMG
+
+GitHub Actions 的「Build desktop apps」會在 main 更新、PR 或 Release 發佈時打包，也可在 Actions 頁面以 Run workflow 手動執行並指定分支或標籤。Release 的標籤必須包含打包設定檔。
+
+產物包含 Windows x86_64 單一 EXE、macOS Apple Silicon（arm64）DMG，以及 SHA256 校驗檔。手動執行與一般提交的產物可從 Actions 的 Artifacts 下載；Release 發佈時會自動附加到該 Release。DMG 中可將 PDFPick.app 拖入 Applications，不需要另外安裝 Python。
+
+目前未設定 Windows 程式碼簽章或 macOS Developer ID 簽章／公證，因此下載後可能出現系統的安全提示；這些套件並非已公證的 macOS 發行版。
+
+打包全程在 GitHub 雲端環境執行。流程會先驗證 Qt、圖示、背景 PDF 渲染與重排輸出；macOS 使用系統內建的 ditto 與 hdiutil 建立並驗證 DMG。Actions 產物保留 30 天。
